@@ -74,19 +74,21 @@ button:hover {
 
 <body>
 
-<h2 style="text-align:center;">Athlete PB Lookup</h2>
+
 
 <div id="controls">
+    <h2 style="text-align:center;">Athlete PB Lookup</h2>
     <p><b>Paste start list from AV portal (tab-separated):</b></p>
 
     <textarea id="startList">Paste Start List from results hub HERE. (REMOVE this TEXT fist)</textarea>
 
     <br>
     <button onclick="run()">Run Search</button>
+<button onclick="document.getElementById('controls').style.display='none'">Print View</button>
     <p id="status"></p>
 </div>
 
-<div id="output"></div>
+<div onclick="document.getElementById('controls').style.display='block'" id="output">TABLE</div>
 
 <script>
 // ========================
