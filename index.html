@@ -59,6 +59,7 @@ button:hover {
 .styled-table th, .styled-table td {
     padding: 12px 15px;
     border-bottom: 1px solid #ddd;
+    text-align:center;
 }
 
 .styled-table tbody tr:nth-child(even) {
@@ -78,9 +79,7 @@ button:hover {
 <div id="controls">
     <p><b>Paste start list from AV portal (tab-separated):</b></p>
 
-    <textarea id="startList">
-    Paste Start List from results hub HERE.  
-    </textarea>
+    <textarea id="startList">Paste Start List from results hub HERE. (REMOVE this TEXT fist)</textarea>
 
     <br>
     <button onclick="run()">Run Search</button>
@@ -184,10 +183,10 @@ async function run() {
             <tr>
                 <th>Name</th>
                 <th>Club</th>
-                <th>Status</th>
                 <th>5km Time</th>
                 <th>3km Time</th>
                 <th>1500m Time</th>
+                <th style='width:20px;'>Status</th>
             </tr>
         </thead>
         <tbody>
@@ -237,12 +236,12 @@ async function run() {
                 </a>
             </td>
             <td>${club}</td>
-            <td class="status ${statusClass}" title="${statusText}">
-                ${statusIcon}
-            </td>
             <td>${pb5[1]}<br><i style="font-size:12px;">${pb5[0]}</i></td>
             <td>${pb3[1]}<br><i style="font-size:12px;">${pb3[0]}</i></td>
             <td>${pb15[1]}<br><i style="font-size:12px;">${pb15[0]}</i></td>
+            <td style='width:20px;' class="status ${statusClass}" title="${statusText}">
+                ${statusIcon}
+            </td>
         </tr>`;
     }
 
