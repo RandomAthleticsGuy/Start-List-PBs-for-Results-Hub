@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Athlete PB Search</title>
+
+<style>
+body {
+    font-family: Arial, sans-serif;
+    margin: 20px;
+}
+
+/* Input Section */
+#controls {
+    max-width: 900px;
+    margin: auto;
+}
+
+textarea {
+    width: 100%;
+    height: 220px;
+    font-family: monospace;
+    font-size: 14px;
+    padding: 10px;
+    margin-bottom: 10px;
+}
+
+button {
+    padding: 12px 20px;
+    font-size: 16px;
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+button:hover {
+    background-color: #45a049;
+}
+
+/* Table Styles */
+.styled-table {
+    width: 90%;
+    margin: 30px auto;
+    border-collapse: collapse;
+    font-size: 16px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.styled-table thead tr {
+    background-color: #4CAF50;
+    color: white;
+    font-weight: bold;
+}
+
+.styled-table th, .styled-table td {
+    padding: 12px 15px;
+    border-bottom: 1px solid #ddd;
+}
+
+.styled-table tbody tr:nth-child(even) {
+    background-color: #f3f3f3;
+}
+
+.styled-table tbody tr:hover {
+    background-color: #e2e2e2;
+}
+</style>
+</head>
+
+<body>
+
+<h2 style="text-align:center;">Athlete PB Lookup</h2>
+
+<div id="controls">
+    <p><b>Paste start list from AV portal (tab-separated):</b></p>
+
+    <textarea id="startList">
+    Paste Start List from results hub HERE.  
+    </textarea>
+
+    <br>
+    <button onclick="run()">Run Search</button>
+    <p id="status"></p>
+</div>
+
+<div id="output"></div>
+
+<script>
+// ========================
+// UTILITIES
+// ========================
+function timeToSeconds(time) {
+    if (!time.includes(":")) return Infinity;
+    const parts = time.replace("h", "").split(":");
+    if (parts.length === 2) {
+        return parseInt(parts[0]) * 60 + parseFloat(parts[1]);
+    }
+    return parseFloat(parts[0]);
+}
+
+
+function formatAthleteName(fullName) {
+    const parts = fullName.trim().split(/\s+/);
+
+    if (parts.length === 1) {
+        return parts[0];
+    }
+
+    const firstName = parts[0];
+    const surname = parts.slice(1).join(" ");
+
+    return `${surname}, ${firstName}`;
+}
+
+
+// ========================
+// FETCH + PARSE RESULTS
+// ========================
+async function requestURL(url) {
+    const proxy = "https://corsproxy.io/?";
+    const response = await fetch(proxy + encodeURIComponent(url));
+    const html = await response.text();
+
+    const doc = new DOMParser().parseFromString(html, "text/html");
+    const rows = doc.querySelectorAll("tr");
+
+    const data = [];
+    rows.forEach(row => {
+        const cells = row.querySelectorAll("td");
+        if (cells.length === 6) {
+            const rowData = [...cells]
+                .map(td => td.textContent.trim())
+                .filter(t => t !== "");
+            data.push(rowData);
+        }
+    });
+    return data;
+}
+
+async function search(name) {
+    const queryName = formatAthleteName(name);
+    const url = `https://athsvic.resultshub.com.au/php/db/fetch_athResults.php?athleteName=${encodeURIComponent(queryName)}`;
+    return await requestURL(url);
+}
+
+function pb(results, events) {
+    const times = [];
+    results.forEach(r => {
+        if (r.length === 4) {
+            const [date, event, time] = r;
+            if (events.includes(event) && time.includes(":")) {
+                times.push([date, time]);
+            }
+        }
+    });
+    times.sort((a, b) => timeToSeconds(a[1]) - timeToSeconds(b[1]));
+    return times.length ? times[0] : ["", ""];
+}
+
+// ========================
+// MAIN
+// ========================
+async function run() {
+    document.getElementById("output").innerHTML = "";
+    document.getElementById("status").textContent = "Searching...";
+
+    const raw = document.getElementById("startList").value.trim();
+    if (!raw) {
+        alert("Please paste a start list.");
+        return;
+    }
+
+    const rows = raw.split("\n")
+        .map(r => r.split("\t").map(c => c.trim()))
+        .filter(r => r.length >= 2);
+
+    let table = `
+    <table class="styled-table">
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Club</th>
+                <th>Status</th>
+                <th>5km Time</th>
+                <th>3km Time</th>
+                <th>1500m Time</th>
+            </tr>
+        </thead>
+        <tbody>
+    `;
+
+    let count = 0;
+
+    for (const row of rows) {
+        count++;
+        document.getElementById("status").textContent =
+            `Searching ${count} / ${rows.length}...`;
+
+        const name = row[0];
+        const club = row[1];
+
+        let results = [];
+        let statusClass = "ok";
+        let statusIcon = "✅";
+        let statusText = "Results found";
+
+        try {
+            results = await search(name);
+
+            if (!results || results.length === 0) {
+                statusClass = "warn";
+                statusIcon = "⚠️";
+                statusText = "No results found";
+            }
+        } catch (err) {
+            console.error("Error searching:", name, err);
+            statusClass = "error";
+            statusIcon = "❌";
+            statusText = "Search failed";
+        }
+
+        const pb5  = results.length ? pb(results, ["5000m", "5km", "5km (Road)"]) : ["", ""];
+        const pb3  = results.length ? pb(results, ["3000m", "3km", "3km (Road)"]) : ["", ""];
+        const pb15 = results.length ? pb(results, ["1500m"]) : ["", ""];
+
+        const linkName = formatAthleteName(name);
+
+        table += `
+        <tr>
+            <td>
+                <a href="https://athsvic.resultshub.com.au/php/db/fetch_athResults.php?athleteName=${encodeURIComponent(linkName)}" target="_blank">
+                    ${name}
+                </a>
+            </td>
+            <td>${club}</td>
+            <td class="status ${statusClass}" title="${statusText}">
+                ${statusIcon}
+            </td>
+            <td>${pb5[1]}<br><i style="font-size:12px;">${pb5[0]}</i></td>
+            <td>${pb3[1]}<br><i style="font-size:12px;">${pb3[0]}</i></td>
+            <td>${pb15[1]}<br><i style="font-size:12px;">${pb15[0]}</i></td>
+        </tr>`;
+    }
+
+    table += "</tbody></table>";
+    document.getElementById("output").innerHTML = table;
+    document.getElementById("status").textContent = "Done ✔";
+}
+</script>
+
+</body>
+</html>
